@@ -15,7 +15,7 @@
     "commands": [
       {
         "command": "git-unused-branch-cleaner.scan",
-        "title": "Git: Scan for unused branches"
+        "title": "Git: Scan for unused remote branches"
       }
     ]
   },
@@ -47,6 +47,7 @@
     "typescript": "^5.6.3"
   },
   "dependencies": {
+    "@octokit/rest": "^21.0.2",
     "simple-git": "^3.27.0"
   }
 }
