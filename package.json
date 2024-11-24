@@ -16,6 +16,10 @@
       {
         "command": "git-unused-branch-cleaner.scan",
         "title": "Git unused branch cleaner: Scan"
+      },
+      {
+        "command": "git-unused-branch-cleaner.delete",
+        "title": "Git unused branch cleaner: Delete"
       }
     ]
   },

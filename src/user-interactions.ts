@@ -65,6 +65,11 @@ async function getWorkspacePathAndName(): Promise<WorkspaceInfo | null> {
         }
     );
 
+    if (!selectedWorkspaceFolder) {
+        vscode.window.showInformationMessage('Workspace folder selection cancelled.');
+        return null;
+    }
+
     const workspacePath = workspaceFolders.find(folder => folder.name === selectedWorkspaceFolder)!.uri.fsPath;
     const workspaceName = workspaceFolders.find(folder => folder.name === selectedWorkspaceFolder)!.name;
 
@@ -73,6 +78,7 @@ async function getWorkspacePathAndName(): Promise<WorkspaceInfo | null> {
 
 async function getMainBranchName(): Promise<string | null> {
     const mainBranchName = await vscode.window.showInputBox({
+        'value': 'main',
         'prompt': 'Enter the name of the main branch',
         validateInput: (value) => value === '' ? 'Please enter a valid branch name' : undefined
     });
