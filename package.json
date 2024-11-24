@@ -15,7 +15,7 @@
     "commands": [
       {
         "command": "git-unused-branch-cleaner.scan",
-        "title": "Git: Scan for unused remote branches"
+        "title": "Git unused branch cleaner: Scan"
       }
     ]
   },

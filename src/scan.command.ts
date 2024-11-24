@@ -13,9 +13,26 @@ export async function scanCommand() {
         return;
     }
 
-    const workspacePath = workspaceFolders[0].uri.fsPath;
+    const selectedWorkspaceFolder = await vscode.window.showQuickPick(
+        workspaceFolders.map(folder => folder.name),
+        {
+            placeHolder: 'Select workspace folder to scan for unused branches'
+        }
+    );
+
+    const workspacePath = workspaceFolders.find(folder => folder.name === selectedWorkspaceFolder)!.uri.fsPath;
+    const workspaceName = workspaceFolders.find(folder => folder.name === selectedWorkspaceFolder)!.name;
     const git: SimpleGit = simpleGit(workspacePath);
 
+    const mainBranchName = await vscode.window.showInputBox({
+        'prompt': 'Enter the name of the main branch',
+        validateInput: (value) => value === '' ? 'Please enter a valid branch name' : undefined
+    });
+
+    if (mainBranchName === undefined || mainBranchName === '') {
+        vscode.window.showInformationMessage('Main branch name input cancelled.');
+        return;
+    }
     const criteria = await vscode.window.showQuickPick(
         Object.values(Criteria),
         {
@@ -28,6 +45,7 @@ export async function scanCommand() {
         vscode.window.showErrorMessage('No criteria selected.');
         return;
     }
+    
 
     let daysForCriteria;
     if (criteria.includes(Criteria.NoRecentCommits)) {
@@ -42,21 +60,8 @@ export async function scanCommand() {
         }
     }
 
-    let mainBranchName;
-    if (criteria.includes(Criteria.BranchesMergedIntoMain)) {
-        mainBranchName = await vscode.window.showInputBox({
-            'prompt': 'Enter the name of the main branch',
-            validateInput: (value) => value === '' ? 'Please enter a valid branch name' : undefined
-        });
-
-        if (mainBranchName === undefined || mainBranchName === '') {
-            vscode.window.showInformationMessage('Main branch name input cancelled.');
-            return;
-        }
-    }
-
     let remotePlatform;
-    let ownerAndRepo;
+    let remoteInfo;
     if (criteria.includes(Criteria.NoPullRequests)) {
         const remoteUrl = await getRemoteUrl(git);
         if(!remoteUrl) {
@@ -74,16 +79,16 @@ export async function scanCommand() {
         }
 
         if(remotePlatform === RemotePlatform.GitHub) {
-            ownerAndRepo = await getRemoteInfoGitHub(remoteUrl);
-            if (!ownerAndRepo) {
+            remoteInfo = await getRemoteInfoGitHub(remoteUrl);
+            if (!remoteInfo) {
                 vscode.window.showErrorMessage('Could not determine owner and repo from git remotes.');
                 return;
             }
         }
 
         if(remotePlatform === RemotePlatform.AzureDevOps) {
-            ownerAndRepo = await getRemoteInfoAzureDevOps(remoteUrl);
-            if (!ownerAndRepo) {
+            remoteInfo = await getRemoteInfoAzureDevOps(remoteUrl);
+            if (!remoteInfo) {
                 vscode.window.showErrorMessage('Could not determine owner and repo from git remotes.');
                 return;
             }
@@ -93,17 +98,21 @@ export async function scanCommand() {
     try {
         const branches = await git.branch(['-r']);
         const remoteBranches = branches.all;
-        const filteredBranches = await filterBranches(remoteBranches, criteria, Number(daysForCriteria), mainBranchName!, ownerAndRepo, remotePlatform!, git);
-        console.log(filteredBranches);
+        const filteredBranches = await filterBranches(remoteBranches, criteria, Number(daysForCriteria), mainBranchName, remoteInfo, remotePlatform, git);
+        showReport(workspaceName, filteredBranches);
     } catch (error: any) {
         vscode.window.showErrorMessage(`Failed to get remote branches: ${error.message}`);
     }
 }
 
-async function filterBranches(branches: string[], criteria: string[], daysForCriteria: number, mainBranchName:string, ownerAndRepo: RemoteInfo | undefined, remotePlatform: string, git: SimpleGit): Promise<Map<string,string>>{
+async function filterBranches(branches: string[], criteria: string[], daysForCriteria: number, mainBranchName:string, remoteInfo: RemoteInfo | undefined, remotePlatform: string | undefined, git: SimpleGit): Promise<Map<string,string>>{
 	const filteredBranches: Map<string, string> = new Map();
 
 	for(const branch of branches) {
+        if (branch.includes(mainBranchName)){
+            continue;
+        }
+
 		let reason = '';
 		let includeBranch = true;
 
@@ -116,7 +125,7 @@ async function filterBranches(branches: string[], criteria: string[], daysForCri
 
 				case(Criteria.BranchesMergedIntoMain):
 					reason = Criteria.BranchesMergedIntoMain;
-					includeBranch = await hasBeenMergedIntoMain(branch, mainBranchName, git);
+					includeBranch = await hasBeenMergedIntoMain(branch, mainBranchName!, git);
 					break;
 
 				case(Criteria.NoAssociatedTags):
@@ -127,11 +136,11 @@ async function filterBranches(branches: string[], criteria: string[], daysForCri
 				case(Criteria.NoPullRequests):
 					reason = Criteria.NoPullRequests;
 					if(remotePlatform === RemotePlatform.GitHub) {
-						includeBranch = await hasNoPullRequestsGitHub(branch, ownerAndRepo!);
+						includeBranch = await hasNoPullRequestsGitHub(branch, remoteInfo!);
 						break;
 					}
 					if(remotePlatform === RemotePlatform.AzureDevOps) {
-						includeBranch = await hasNoPullRequestsAzureDevOps(branch, ownerAndRepo!);
+						includeBranch = await hasNoPullRequestsAzureDevOps(branch, remoteInfo!);
 						break;
 					}
 			}
@@ -144,4 +153,72 @@ async function filterBranches(branches: string[], criteria: string[], daysForCri
 	}
 
 	return filteredBranches;
+}
+
+async function showReport(repoTitle: string, branches: Map<string, string>) {
+    const panel = vscode.window.createWebviewPanel(
+        'unusedRemoteBranchReport',
+        'Unused Remote Branch Report',
+        vscode.ViewColumn.One,
+        {}
+    );
+
+    panel.webview.html = generateReportHtml(repoTitle, branches);
+}
+
+function generateReportHtml(repoTitle: string, branches: Map<string, string>): string {
+    let html = `
+        <html>
+        <head>
+            <style>
+                :root {
+                    color-scheme: light dark;
+                    --background-color: var(--vscode-editor-background);
+                    --text-color: var(--vscode-editor-foreground);
+                    --table-header-background: var(--vscode-editor-background);
+                    --table-border-color: var(--vscode-editor-foreground);
+                }
+                body {
+                    background-color: var(--background-color);
+                    color: var(--text-color);
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                }
+                th, td {
+                    border: 1px solid var(--table-border-color);
+                    padding: 8px;
+                    text-align: left;
+                }
+                th {
+                    background-color: var(--table-header-background);
+                }
+            </style>
+        </head>
+        <body>
+            <h1>${repoTitle}</h1>
+            <table>
+                <tr>
+                    <th>Branch</th>
+                    <th>Reason</th>
+                </tr>
+    `;
+
+    branches.forEach((reason, branch) => {
+        html += `
+            <tr>
+                <td>${branch}</td>
+                <td>${reason}</td>
+            </tr>
+        `;
+    });
+
+    html += `
+            </table>
+        </body>
+        </html>
+    `;
+
+    return html;
 }
