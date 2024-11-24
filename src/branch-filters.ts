@@ -5,8 +5,60 @@ let Octokit: any;
 	Octokit = (await import('@octokit/rest')).Octokit;
 })();
 import * as vscode from 'vscode';
+import { Criteria } from "./data/criteria.enum";
+import { RemotePlatform } from "./data/remote-platform.enum";
 
-export async function hasNoRecentCommits(branch: string, daysForCriteria: number, git: SimpleGit): Promise<boolean> {
+export async function filterBranches(branches: string[], criteria: string[], mainBranchName:string, daysForCriteria: number | null, remoteInfo: RemoteInfo | null, remotePlatform: string | null, git: SimpleGit): Promise<Map<string,string>>{
+	const filteredBranches: Map<string, string> = new Map();
+
+	for(const branch of branches) {
+        if (branch.includes(mainBranchName)){
+            continue;
+        }
+
+		let reason = '';
+		let includeBranch = true;
+
+		for (const criterion of criteria) {
+			switch (criterion) {
+				case(Criteria.NoRecentCommits):
+					reason = Criteria.NoRecentCommits;
+					includeBranch = await hasNoRecentCommits(branch, daysForCriteria!, git);
+					break;
+
+				case(Criteria.BranchesMergedIntoMain):
+					reason = Criteria.BranchesMergedIntoMain;
+					includeBranch = await hasBeenMergedIntoMain(branch, mainBranchName!, git);
+					break;
+
+				case(Criteria.NoAssociatedTags):
+					reason = Criteria.NoAssociatedTags;
+					includeBranch = await hasNoAssociatedTags(branch, git);
+					break;
+
+				case(Criteria.NoActivePullRequests):
+					reason = Criteria.NoActivePullRequests;
+					if(remotePlatform === RemotePlatform.GitHub) {
+						includeBranch = await hasNoPullRequestsGitHub(branch, remoteInfo!);
+						break;
+					}
+					if(remotePlatform === RemotePlatform.AzureDevOps) {
+						includeBranch = await hasNoPullRequestsAzureDevOps(branch, remoteInfo!);
+						break;
+					}
+			}
+
+		}
+
+		if(includeBranch) {
+			filteredBranches.set(branch, reason);
+		}
+	}
+
+	return filteredBranches;
+}
+
+async function hasNoRecentCommits(branch: string, daysForCriteria: number, git: SimpleGit): Promise<boolean> {
 	const commits = await git.log([branch]);
 	const recentCommits = commits.all.filter(commit => {
 		const commitDate = new Date(commit.date);
@@ -17,12 +69,12 @@ export async function hasNoRecentCommits(branch: string, daysForCriteria: number
 	return recentCommits.length === 0;
 } 
 
-export async function hasBeenMergedIntoMain(branch:string, mainBranchName: string, git: SimpleGit): Promise<boolean> {
+async function hasBeenMergedIntoMain(branch:string, mainBranchName: string, git: SimpleGit): Promise<boolean> {
 	const mergedBranches = await git.branch(['-r', '--merged', mainBranchName]);
 	return mergedBranches.all.includes(branch);
 }
 
-export async function hasNoAssociatedTags(branch: string, git: SimpleGit): Promise<boolean> {
+async function hasNoAssociatedTags(branch: string, git: SimpleGit): Promise<boolean> {
     const tags = await git.tags();
 	if (tags.all.length === 0) {
 		return true;
@@ -40,7 +92,7 @@ export async function hasNoAssociatedTags(branch: string, git: SimpleGit): Promi
     return true;
 }
 
-export async function hasNoPullRequestsGitHub(branch: string, remoteInfo: RemoteInfo): Promise<boolean> {
+async function hasNoPullRequestsGitHub(branch: string, remoteInfo: RemoteInfo): Promise<boolean> {
 	const session = await vscode.authentication.getSession('github', ['repo'], { createIfNone: true});
 	const octokit = new Octokit({ auth: session.accessToken });
 
@@ -56,7 +108,7 @@ export async function hasNoPullRequestsGitHub(branch: string, remoteInfo: Remote
 	return pullRequests.length === 0;
 }
 
-export async function hasNoPullRequestsAzureDevOps(branch: string, remoteInfo: RemoteInfo): Promise<boolean> {
+async function hasNoPullRequestsAzureDevOps(branch: string, remoteInfo: RemoteInfo): Promise<boolean> {
     const session = await vscode.authentication.getSession('microsoft', ['499b84ac-1321-427f-aa17-267ca6975798/.default'], { createIfNone: true });
     const token = session.accessToken;
 

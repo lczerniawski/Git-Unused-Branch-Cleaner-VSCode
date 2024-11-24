@@ -1,10 +1,6 @@
-import { SimpleGit } from "simple-git";
-import { hasBeenMergedIntoMain, hasNoAssociatedTags, hasNoPullRequestsAzureDevOps, hasNoPullRequestsGitHub, hasNoRecentCommits } from "./branch-filters";
-import { Criteria } from "./data/criteria.enum";
-import { RemoteInfo } from "./data/remote-info.interface";
-import { RemotePlatform } from "./data/remote-platform.enum";
 import * as vscode from 'vscode';
 import { initializeCommand } from "./user-interactions";
+import { filterBranches } from "./branch-filters";
 
 export async function scanCommand() {
     const commandState = await initializeCommand();
@@ -22,55 +18,6 @@ export async function scanCommand() {
     }
 }
 
-async function filterBranches(branches: string[], criteria: string[], mainBranchName:string, daysForCriteria: number | null, remoteInfo: RemoteInfo | null, remotePlatform: string | null, git: SimpleGit): Promise<Map<string,string>>{
-	const filteredBranches: Map<string, string> = new Map();
-
-	for(const branch of branches) {
-        if (branch.includes(mainBranchName)){
-            continue;
-        }
-
-		let reason = '';
-		let includeBranch = true;
-
-		for (const criterion of criteria) {
-			switch (criterion) {
-				case(Criteria.NoRecentCommits):
-					reason = Criteria.NoRecentCommits;
-					includeBranch = await hasNoRecentCommits(branch, daysForCriteria!, git);
-					break;
-
-				case(Criteria.BranchesMergedIntoMain):
-					reason = Criteria.BranchesMergedIntoMain;
-					includeBranch = await hasBeenMergedIntoMain(branch, mainBranchName!, git);
-					break;
-
-				case(Criteria.NoAssociatedTags):
-					reason = Criteria.NoAssociatedTags;
-					includeBranch = await hasNoAssociatedTags(branch, git);
-					break;
-
-				case(Criteria.NoActivePullRequests):
-					reason = Criteria.NoActivePullRequests;
-					if(remotePlatform === RemotePlatform.GitHub) {
-						includeBranch = await hasNoPullRequestsGitHub(branch, remoteInfo!);
-						break;
-					}
-					if(remotePlatform === RemotePlatform.AzureDevOps) {
-						includeBranch = await hasNoPullRequestsAzureDevOps(branch, remoteInfo!);
-						break;
-					}
-			}
-
-		}
-
-		if(includeBranch) {
-			filteredBranches.set(branch, reason);
-		}
-	}
-
-	return filteredBranches;
-}
 
 async function showReport(repoTitle: string, branches: Map<string, string>) {
     const panel = vscode.window.createWebviewPanel(
