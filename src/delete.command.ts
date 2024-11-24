@@ -1,29 +1,30 @@
 import * as vscode from 'vscode';
 import { initializeCommand } from "./user-interactions";
-import { filterBranches } from "./branch-filters";
-import { RemotePlatform } from './data/remote-platform.enum';
 
-export async function deleteCommand() {
+export async function deleteCommand(context: vscode.ExtensionContext) {
     const commandState = await initializeCommand();
     if (!commandState) {
         return;
     }
+    const storedBranches = context.workspaceState.get<[string, string][]>('filteredBranches');
+    if (!storedBranches) {
+        vscode.window.showErrorMessage('No scanned branches found. Please run the scan command first.');
+        return;
+    }
+
+    const filteredBranches = new Map(storedBranches);
+
+    const branchesToDelete = await vscode.window.showQuickPick(Array.from(filteredBranches.keys()), {
+        canPickMany: true,
+        placeHolder: 'Select branches to delete'
+    });
+
+    if (!branchesToDelete || branchesToDelete.length === 0) {
+        vscode.window.showInformationMessage('No branches selected for deletion');
+        return;
+    }
 
     try {
-        const branches = await commandState.git.branch(['-r']);
-        const remoteBranches = branches.all;
-        const filteredBranches = await filterBranches(remoteBranches, commandState.criteria, commandState.mainBranchName, commandState.daysSinceLastCommit, commandState.remoteInfo, commandState.remotePlatform, commandState.git);
-
-        const branchesToDelete = await vscode.window.showQuickPick(Array.from(filteredBranches.keys()), {
-            canPickMany: true,
-            placeHolder: 'Select branches to delete'
-        });
-
-        if (!branchesToDelete || branchesToDelete.length === 0) {
-            vscode.window.showInformationMessage('No branches selected for deletion');
-            return;
-        }
-
         for (let branch of branchesToDelete) {
             const remoteAndBranchName = splitAtFirstDelimiter(branch, '/');
             if (!remoteAndBranchName) {

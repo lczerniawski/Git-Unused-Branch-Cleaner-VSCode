@@ -15,11 +15,15 @@
     "commands": [
       {
         "command": "git-unused-branch-cleaner.scan",
-        "title": "Git unused branch cleaner: Scan"
+        "title": "Git Unused Branch Cleaner: Scan Repository"
+      },
+      {
+        "command": "git-unused-branch-cleaner.showReport",
+        "title": "Git Unused Branch Cleaner: View Cleanup Report"
       },
       {
         "command": "git-unused-branch-cleaner.delete",
-        "title": "Git unused branch cleaner: Delete"
+        "title": "Git Unused Branch Cleaner: Delete Branches"
       }
     ]
   },

@@ -1,24 +1,20 @@
 import * as vscode from 'vscode';
 import { initializeCommand } from "./user-interactions";
-import { filterBranches } from "./branch-filters";
 
-export async function scanCommand(context: vscode.ExtensionContext) {
+export async function showReportCommand(context: vscode.ExtensionContext) {
     const commandState = await initializeCommand();
     if (!commandState) {
         return;
     }
 
-    try {
-        const branches = await commandState.git.branch(['-r']);
-        const remoteBranches = branches.all;
-        const filteredBranches = await filterBranches(remoteBranches, commandState.criteria, commandState.mainBranchName, commandState.daysSinceLastCommit, commandState.remoteInfo, commandState.remotePlatform, commandState.git);
-
-        context.workspaceState.update('filteredBranches', Array.from(filteredBranches.entries()));
-        vscode.window.showInformationMessage('Branches scanned and stored successfully');
-        //showReport(commandState.workspaceInfo.workspaceName, filteredBranches);
-    } catch (error: any) {
-        vscode.window.showErrorMessage(`Failed to get remote branches: ${error.message}`);
+    const storedBranches = context.workspaceState.get<[string, string][]>('filteredBranches');
+    if (!storedBranches) {
+        vscode.window.showErrorMessage('No scanned branches found. Please run the scan command first.');
+        return;
     }
+
+    const filteredBranches = new Map(storedBranches);
+    showReport(commandState.workspaceInfo.workspaceName, filteredBranches);
 }
 
 
