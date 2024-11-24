@@ -4,7 +4,7 @@ import { Criteria } from './data/criteria.enum';
 import { RemotePlatform } from './data/remote-platform.enum';
 import { RemoteInfo } from './data/remote-info.interface';
 import { hasBeenMergedIntoMain, hasNoAssociatedTags, hasNoPullRequestsAzureDevOps, hasNoPullRequestsGitHub, hasNoRecentCommits } from './branch-filters';
-import { getOwnerAndRepoGitHub, getOwnerProjectRepoAzureDevOps, getRemoteUrl } from './git.helpers';
+import { getRemoteInfoGitHub, getRemoteInfoAzureDevOps, getRemoteUrl } from './git.helpers';
 
 export function activate(context: vscode.ExtensionContext) {
 	const disposable = vscode.commands.registerCommand('git-unused-branch-cleaner.scan', async () => {
@@ -75,7 +75,7 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 
 			if(remotePlatform === RemotePlatform.GitHub) {
-				ownerAndRepo = await getOwnerAndRepoGitHub(remoteUrl);
+				ownerAndRepo = await getRemoteInfoGitHub(remoteUrl);
 				if (!ownerAndRepo) {
 					vscode.window.showErrorMessage('Could not determine owner and repo from git remotes.');
 					return;
@@ -83,13 +83,12 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 
 			if(remotePlatform === RemotePlatform.AzureDevOps) {
-				ownerAndRepo = await getOwnerProjectRepoAzureDevOps(remoteUrl);
+				ownerAndRepo = await getRemoteInfoAzureDevOps(remoteUrl);
 				if (!ownerAndRepo) {
 					vscode.window.showErrorMessage('Could not determine owner and repo from git remotes.');
 					return;
 				}
 			}
-
 		}
 
         try {

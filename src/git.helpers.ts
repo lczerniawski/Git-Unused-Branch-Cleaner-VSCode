@@ -23,7 +23,7 @@ export async function getRemoteUrl(git: SimpleGit): Promise<string | null> {
 	return remoteUrl;
 }
 
-export async function getOwnerAndRepoGitHub(remoteUrl: string): Promise<RemoteInfo | null> {
+export async function getRemoteInfoGitHub(remoteUrl: string): Promise<RemoteInfo | null> {
     const match = remoteUrl.match(/github\.com[:/](.+?)\/(.+?)(\.git)?$/);
 	if (match) {
         const owner = match[1];
@@ -34,7 +34,7 @@ export async function getOwnerAndRepoGitHub(remoteUrl: string): Promise<RemoteIn
     return null;
 }
 
-export async function getOwnerProjectRepoAzureDevOps(remoteUrl: string): Promise<RemoteInfo | null> {
+export async function getRemoteInfoAzureDevOps(remoteUrl: string): Promise<RemoteInfo | null> {
     const match = remoteUrl.match(/dev\.azure\.com\/(.+?)\/(.+?)\/(\_git)\/(.+?)$/);
 	if (match) {
         const owner = match[1];
