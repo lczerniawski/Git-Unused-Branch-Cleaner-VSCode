@@ -1,111 +1,28 @@
-import simpleGit, { SimpleGit } from "simple-git";
+import { SimpleGit } from "simple-git";
 import { hasBeenMergedIntoMain, hasNoAssociatedTags, hasNoPullRequestsAzureDevOps, hasNoPullRequestsGitHub, hasNoRecentCommits } from "./branch-filters";
 import { Criteria } from "./data/criteria.enum";
 import { RemoteInfo } from "./data/remote-info.interface";
 import { RemotePlatform } from "./data/remote-platform.enum";
 import * as vscode from 'vscode';
-import { getRemoteInfoAzureDevOps, getRemoteInfoGitHub, getRemoteUrl } from "./git.helpers";
+import { initializeCommand } from "./user-interactions";
 
 export async function scanCommand() {
-    const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (!workspaceFolders) {
-        vscode.window.showErrorMessage('No workspace folder is open.');
+    const commandState = await initializeCommand();
+    if (!commandState) {
         return;
-    }
-
-    const selectedWorkspaceFolder = await vscode.window.showQuickPick(
-        workspaceFolders.map(folder => folder.name),
-        {
-            placeHolder: 'Select workspace folder to scan for unused branches'
-        }
-    );
-
-    const workspacePath = workspaceFolders.find(folder => folder.name === selectedWorkspaceFolder)!.uri.fsPath;
-    const workspaceName = workspaceFolders.find(folder => folder.name === selectedWorkspaceFolder)!.name;
-    const git: SimpleGit = simpleGit(workspacePath);
-
-    const mainBranchName = await vscode.window.showInputBox({
-        'prompt': 'Enter the name of the main branch',
-        validateInput: (value) => value === '' ? 'Please enter a valid branch name' : undefined
-    });
-
-    if (mainBranchName === undefined || mainBranchName === '') {
-        vscode.window.showInformationMessage('Main branch name input cancelled.');
-        return;
-    }
-    const criteria = await vscode.window.showQuickPick(
-        Object.values(Criteria),
-        {
-            placeHolder: 'Select criteria to scan for unused branches',
-            canPickMany: true
-        }
-    );
-
-    if(!criteria || criteria.length === 0) {
-        vscode.window.showErrorMessage('No criteria selected.');
-        return;
-    }
-    
-
-    let daysForCriteria;
-    if (criteria.includes(Criteria.NoRecentCommits)) {
-        daysForCriteria = await vscode.window.showInputBox({
-            'prompt': 'Enter the number of days for criteria',
-            validateInput: (value) => isNaN(Number(value)) ? 'Please enter a valid number' : undefined
-        });
-
-        if (daysForCriteria === undefined) {
-            vscode.window.showInformationMessage('Days for criteria input cancelled.');
-            return;
-        }
-    }
-
-    let remotePlatform;
-    let remoteInfo;
-    if (criteria.includes(Criteria.NoPullRequests)) {
-        const remoteUrl = await getRemoteUrl(git);
-        if(!remoteUrl) {
-            return;
-        }
-
-        if(remoteUrl.includes('github.com')) {
-            remotePlatform = RemotePlatform.GitHub;
-        }
-        else if(remoteUrl.includes('dev.azure.com')) {
-            remotePlatform = RemotePlatform.AzureDevOps;
-        }
-        else {
-            vscode.window.showErrorMessage('Unsupported origin selected, only Github and AzureDevOps is supported.');
-        }
-
-        if(remotePlatform === RemotePlatform.GitHub) {
-            remoteInfo = await getRemoteInfoGitHub(remoteUrl);
-            if (!remoteInfo) {
-                vscode.window.showErrorMessage('Could not determine owner and repo from git remotes.');
-                return;
-            }
-        }
-
-        if(remotePlatform === RemotePlatform.AzureDevOps) {
-            remoteInfo = await getRemoteInfoAzureDevOps(remoteUrl);
-            if (!remoteInfo) {
-                vscode.window.showErrorMessage('Could not determine owner and repo from git remotes.');
-                return;
-            }
-        }
     }
 
     try {
-        const branches = await git.branch(['-r']);
+        const branches = await commandState.git.branch(['-r']);
         const remoteBranches = branches.all;
-        const filteredBranches = await filterBranches(remoteBranches, criteria, Number(daysForCriteria), mainBranchName, remoteInfo, remotePlatform, git);
-        showReport(workspaceName, filteredBranches);
+        const filteredBranches = await filterBranches(remoteBranches, commandState.criteria, commandState.mainBranchName, commandState.daysSinceLastCommit, commandState.remoteInfo, commandState.remotePlatform, commandState.git);
+        showReport(commandState.workspaceInfo.workspaceName, filteredBranches);
     } catch (error: any) {
         vscode.window.showErrorMessage(`Failed to get remote branches: ${error.message}`);
     }
 }
 
-async function filterBranches(branches: string[], criteria: string[], daysForCriteria: number, mainBranchName:string, remoteInfo: RemoteInfo | undefined, remotePlatform: string | undefined, git: SimpleGit): Promise<Map<string,string>>{
+async function filterBranches(branches: string[], criteria: string[], mainBranchName:string, daysForCriteria: number | null, remoteInfo: RemoteInfo | null, remotePlatform: string | null, git: SimpleGit): Promise<Map<string,string>>{
 	const filteredBranches: Map<string, string> = new Map();
 
 	for(const branch of branches) {
@@ -120,7 +37,7 @@ async function filterBranches(branches: string[], criteria: string[], daysForCri
 			switch (criterion) {
 				case(Criteria.NoRecentCommits):
 					reason = Criteria.NoRecentCommits;
-					includeBranch = await hasNoRecentCommits(branch, daysForCriteria, git);
+					includeBranch = await hasNoRecentCommits(branch, daysForCriteria!, git);
 					break;
 
 				case(Criteria.BranchesMergedIntoMain):
