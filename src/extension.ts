@@ -1,27 +1,10 @@
-let Octokit: any;
-(async () => {
-	Octokit = (await import('@octokit/rest')).Octokit;
-})();
 import simpleGit, { SimpleGit } from 'simple-git';
 import * as vscode from 'vscode';
-
-enum Criteria {
-    NoRecentCommits = 'No recent commits',
-    BranchesMergedIntoMain = 'Branches merged into main',
-    NoAssociatedTags = 'No associated tags',
-    NoPullRequests = 'No pull requests',
-}
-
-enum RemotePlatforms {
-	GitHub = "GitHub",
-	AzureDevOps = "Azure DevOps"
-}
-
-interface RemoteInfo {
-	owner: string,
-	project: string
-	repo: string
-}
+import { Criteria } from './data/criteria.enum';
+import { RemotePlatform } from './data/remote-platform.enum';
+import { RemoteInfo } from './data/remote-info.interface';
+import { hasBeenMergedIntoMain, hasNoAssociatedTags, hasNoPullRequestsAzureDevOps, hasNoPullRequestsGitHub, hasNoRecentCommits } from './branch-filters';
+import { getOwnerAndRepoGitHub, getOwnerProjectRepoAzureDevOps, getRemoteUrl } from './git.helpers';
 
 export function activate(context: vscode.ExtensionContext) {
 	const disposable = vscode.commands.registerCommand('git-unused-branch-cleaner.scan', async () => {
@@ -82,16 +65,16 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 
 			if(remoteUrl.includes('github.com')) {
-				remotePlatform = RemotePlatforms.GitHub;
+				remotePlatform = RemotePlatform.GitHub;
 			}
 			else if(remoteUrl.includes('dev.azure.com')) {
-				remotePlatform = RemotePlatforms.AzureDevOps;
+				remotePlatform = RemotePlatform.AzureDevOps;
 			}
 			else {
 				vscode.window.showErrorMessage('Unsupported origin selected, only Github and AzureDevOps is supported.');
 			}
 
-			if(remotePlatform === RemotePlatforms.GitHub) {
+			if(remotePlatform === RemotePlatform.GitHub) {
 				ownerAndRepo = await getOwnerAndRepoGitHub(remoteUrl);
 				if (!ownerAndRepo) {
 					vscode.window.showErrorMessage('Could not determine owner and repo from git remotes.');
@@ -99,7 +82,7 @@ export function activate(context: vscode.ExtensionContext) {
 				}
 			}
 
-			if(remotePlatform === RemotePlatforms.AzureDevOps) {
+			if(remotePlatform === RemotePlatform.AzureDevOps) {
 				ownerAndRepo = await getOwnerProjectRepoAzureDevOps(remoteUrl);
 				if (!ownerAndRepo) {
 					vscode.window.showErrorMessage('Could not determine owner and repo from git remotes.');
@@ -134,7 +117,7 @@ async function filterBranches(branches: string[], criteria: string[], daysForCri
 		for (const criterion of criteria) {
 			switch (criterion) {
 				case(Criteria.NoRecentCommits):
-					includeBranch = await hasRecentCommits(branch, daysForCriteria, git);
+					includeBranch = await hasNoRecentCommits(branch, daysForCriteria, git);
 					break;
 
 				case(Criteria.BranchesMergedIntoMain):
@@ -146,11 +129,11 @@ async function filterBranches(branches: string[], criteria: string[], daysForCri
 					break;
 
 				case(Criteria.NoPullRequests):
-					if(remotePlatform === RemotePlatforms.GitHub) {
+					if(remotePlatform === RemotePlatform.GitHub) {
 						includeBranch = await hasNoPullRequestsGitHub(branch, ownerAndRepo!);
 						break;
 					}
-					if(remotePlatform === RemotePlatforms.AzureDevOps) {
+					if(remotePlatform === RemotePlatform.AzureDevOps) {
 						includeBranch = await hasNoPullRequestsAzureDevOps(branch, ownerAndRepo!);
 						break;
 					}
@@ -164,121 +147,4 @@ async function filterBranches(branches: string[], criteria: string[], daysForCri
 	}
 
 	return filteredBranches;
-}
-
-async function hasRecentCommits(branch: string, daysForCriteria: number, git: SimpleGit): Promise<boolean> {
-	const commits = await git.log([branch]);
-	const recentCommits = commits.all.filter(commit => {
-		const commitDate = new Date(commit.date);
-		const daysAgo = (Date.now() - commitDate.getTime()) / (1000 * 60 * 60 * 24);
-		return daysAgo <= daysForCriteria;
-	});
-
-	return recentCommits.length > 0;
-} 
-
-async function hasBeenMergedIntoMain(branch:string, mainBranchName: string, git: SimpleGit): Promise<boolean> {
-	const mergedBranches = await git.branch(['-r', '--merged', mainBranchName]);
-	return mergedBranches.all.includes(branch);
-}
-
-async function hasNoAssociatedTags(branch: string, git: SimpleGit): Promise<boolean> {
-    const tags = await git.tags();
-	if (tags.all.length === 0) {
-		return true;
-	}
-
-    const commits = await git.log([branch]);
-
-    for (const tag of tags.all) {
-        const tagCommit = await git.revparse([tag]);
-        if (commits.all.some(commit => commit.hash === tagCommit)) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-async function hasNoPullRequestsGitHub(branch: string, remoteInfo: RemoteInfo): Promise<boolean> {
-	const session = await vscode.authentication.getSession('github', ['repo'], { createIfNone: true});
-	const octokit = new Octokit({ auth: session.accessToken });
-
-	const { owner, repo } = remoteInfo;
-	const head = `${owner}:${branch.replace(repo + '/', '')}`;
-	const { data: pullRequests } = await octokit.pulls.list({
-		owner,
-		repo,
-		state: 'all',
-		head
-	});
-	
-	return pullRequests.length === 0;
-}
-
-async function hasNoPullRequestsAzureDevOps(branch: string, remoteInfo: RemoteInfo): Promise<boolean> {
-    const session = await vscode.authentication.getSession('microsoft', ['499b84ac-1321-427f-aa17-267ca6975798/.default'], { createIfNone: true });
-    const token = session.accessToken;
-
-	const branchWithoutOrigin = branch.replace('origin/', '');
-    const { owner, project, repo } = remoteInfo;
-	const url = `https://dev.azure.com/${owner}/${project}/_apis/git/repositories/${repo}/pullrequests?searchCriteria.sourceRefName=refs/heads/${branchWithoutOrigin}&api-version=6.0`;
-
-    const response = await fetch(url, {
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
-    });
-
-    if (!response.ok) {
-        throw new Error(`Failed to fetch pull requests: ${response.statusText}`);
-    }
-
-    const data:any = await response.json();
-    const pullRequests = data.value;
-    return pullRequests.length === 0;
-}
-
-async function getRemoteUrl(git: SimpleGit): Promise<string | null> {
-    const remotes = await git.getRemotes(true);
-    if (remotes.length === 0) {
-        return null;
-    }
-
-    const remoteUrl = await vscode.window.showQuickPick(
-        remotes.map(r => r.refs.fetch),
-        {
-            placeHolder: 'Please select origin for pull request'
-        }
-    );
-
-    if (!remoteUrl) {
-        vscode.window.showInformationMessage('No origin selected.');
-        return null;
-    }
-
-	return remoteUrl;
-}
-
-async function getOwnerAndRepoGitHub(remoteUrl: string): Promise<RemoteInfo | null> {
-    const match = remoteUrl.match(/github\.com[:/](.+?)\/(.+?)(\.git)?$/);
-	if (match) {
-        const owner = match[1];
-        const repo = match[2];
-        return { owner, project: '', repo };
-    }
-
-    return null;
-}
-
-async function getOwnerProjectRepoAzureDevOps(remoteUrl: string): Promise<RemoteInfo | null> {
-    const match = remoteUrl.match(/dev\.azure\.com\/(.+?)\/(.+?)\/(\_git)\/(.+?)$/);
-	if (match) {
-        const owner = match[1];
-		const project = match[2];
-        const repo = match[4];
-        return { owner, project, repo };
-    }
-
-    return null;
 }
