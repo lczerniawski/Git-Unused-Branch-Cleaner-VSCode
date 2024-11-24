@@ -49,7 +49,7 @@ export async function hasNoPullRequestsGitHub(branch: string, remoteInfo: Remote
 	const { data: pullRequests } = await octokit.pulls.list({
 		owner,
 		repo,
-		state: 'all',
+		state: 'open',
 		head
 	});
 	

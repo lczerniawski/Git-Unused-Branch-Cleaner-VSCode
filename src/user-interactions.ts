@@ -31,7 +31,7 @@ export async function initializeCommand(): Promise<CommandState | null> {
 
     let remotePlatform = null;
     let remoteInfo = null;
-    if (criteria.includes(Criteria.NoPullRequests)) {
+    if (criteria.includes(Criteria.NoActivePullRequests)) {
         const remoteUrl = await getRemoteUrl(git);
         if(!remoteUrl) {
             return null;
@@ -42,7 +42,7 @@ export async function initializeCommand(): Promise<CommandState | null> {
             return null;
         }
 
-        remoteInfo = await getRemoteInfo(remotePlatform!, remoteUrl);
+        remoteInfo = await getRemoteInfo(remoteUrl, remotePlatform);
         if(!remoteInfo) {
             return null;
         }

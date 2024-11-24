@@ -50,8 +50,8 @@ async function filterBranches(branches: string[], criteria: string[], mainBranch
 					includeBranch = await hasNoAssociatedTags(branch, git);
 					break;
 
-				case(Criteria.NoPullRequests):
-					reason = Criteria.NoPullRequests;
+				case(Criteria.NoActivePullRequests):
+					reason = Criteria.NoActivePullRequests;
 					if(remotePlatform === RemotePlatform.GitHub) {
 						includeBranch = await hasNoPullRequestsGitHub(branch, remoteInfo!);
 						break;
