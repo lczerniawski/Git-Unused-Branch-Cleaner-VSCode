@@ -76,15 +76,23 @@ export function activate(context: vscode.ExtensionContext) {
 		let remotePlatform;
 		let ownerAndRepo;
 		if (criteria.includes(Criteria.NoPullRequests)) {
-			remotePlatform = await vscode.window.showQuickPick(
-				Object.values(RemotePlatforms),
-				{
-					placeHolder: 'Select remote platform'
-				}
-			);
+			const remoteUrl = await getRemoteUrl(git);
+			if(!remoteUrl) {
+				return;
+			}
+
+			if(remoteUrl.includes('github.com')) {
+				remotePlatform = RemotePlatforms.GitHub;
+			}
+			else if(remoteUrl.includes('dev.azure.com')) {
+				remotePlatform = RemotePlatforms.AzureDevOps;
+			}
+			else {
+				vscode.window.showErrorMessage('Unsupported origin selected, only Github and AzureDevOps is supported.');
+			}
 
 			if(remotePlatform === RemotePlatforms.GitHub) {
-				ownerAndRepo = await getOwnerAndRepoGitHub(git);
+				ownerAndRepo = await getOwnerAndRepoGitHub(remoteUrl);
 				if (!ownerAndRepo) {
 					vscode.window.showErrorMessage('Could not determine owner and repo from git remotes.');
 					return;
@@ -92,7 +100,7 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 
 			if(remotePlatform === RemotePlatforms.AzureDevOps) {
-				ownerAndRepo = await getOwnerProjectRepoAzureDevOps(git);
+				ownerAndRepo = await getOwnerProjectRepoAzureDevOps(remoteUrl);
 				if (!ownerAndRepo) {
 					vscode.window.showErrorMessage('Could not determine owner and repo from git remotes.');
 					return;
@@ -231,7 +239,7 @@ async function hasNoPullRequestsAzureDevOps(branch: string, remoteInfo: RemoteIn
     return pullRequests.length === 0;
 }
 
-async function getOwnerAndRepoGitHub(git: SimpleGit): Promise<RemoteInfo | null> {
+async function getRemoteUrl(git: SimpleGit): Promise<string | null> {
     const remotes = await git.getRemotes(true);
     if (remotes.length === 0) {
         return null;
@@ -249,6 +257,10 @@ async function getOwnerAndRepoGitHub(git: SimpleGit): Promise<RemoteInfo | null>
         return null;
     }
 
+	return remoteUrl;
+}
+
+async function getOwnerAndRepoGitHub(remoteUrl: string): Promise<RemoteInfo | null> {
     const match = remoteUrl.match(/github\.com[:/](.+?)\/(.+?)(\.git)?$/);
 	if (match) {
         const owner = match[1];
@@ -259,24 +271,7 @@ async function getOwnerAndRepoGitHub(git: SimpleGit): Promise<RemoteInfo | null>
     return null;
 }
 
-async function getOwnerProjectRepoAzureDevOps(git: SimpleGit): Promise<RemoteInfo | null> {
-    const remotes = await git.getRemotes(true);
-    if (remotes.length === 0) {
-        return null;
-    }
-
-    const remoteUrl = await vscode.window.showQuickPick(
-        remotes.map(r => r.refs.fetch),
-        {
-            placeHolder: 'Please select origin for pull request'
-        }
-    );
-
-    if (!remoteUrl) {
-        vscode.window.showInformationMessage('No origin selected.');
-        return null;
-    }
-
+async function getOwnerProjectRepoAzureDevOps(remoteUrl: string): Promise<RemoteInfo | null> {
     const match = remoteUrl.match(/dev\.azure\.com\/(.+?)\/(.+?)\/(\_git)\/(.+?)$/);
 	if (match) {
         const owner = match[1];
