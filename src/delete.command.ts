@@ -1,19 +1,22 @@
 import * as vscode from 'vscode';
-import { initializeCommand } from "./user-interactions";
+import { WorkspaceInfo } from './data/workspace-info.interface';
+import simpleGit from 'simple-git';
 
 export async function deleteCommand(context: vscode.ExtensionContext) {
-    const commandState = await initializeCommand();
-    if (!commandState) {
-        return;
-    }
     const storedBranches = context.workspaceState.get<[string, string][]>('filteredBranches');
     if (!storedBranches) {
         vscode.window.showErrorMessage('No scanned branches found. Please run the scan command first.');
         return;
     }
 
-    const filteredBranches = new Map(storedBranches);
+    const storedWorkspaceInfo = context.workspaceState.get<WorkspaceInfo>('workspaceInfo');
+    if (!storedWorkspaceInfo) {
+        vscode.window.showErrorMessage('No workspace info found. Please run the scan command first.');
+        return;
+    }
 
+    const git = simpleGit(storedWorkspaceInfo.workspacePath);
+    const filteredBranches = new Map(storedBranches);
     const branchesToDelete = await vscode.window.showQuickPick(Array.from(filteredBranches.keys()), {
         canPickMany: true,
         placeHolder: 'Select branches to delete'
@@ -32,7 +35,7 @@ export async function deleteCommand(context: vscode.ExtensionContext) {
                 continue;
             }
 
-            await commandState.git.push([remoteAndBranchName[0], '--delete', remoteAndBranchName[1]]);
+            await git.push([remoteAndBranchName[0], '--delete', remoteAndBranchName[1]]);
         }
 
         vscode.window.showInformationMessage('Branches deleted successfully');

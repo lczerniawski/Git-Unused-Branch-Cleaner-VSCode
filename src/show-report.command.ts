@@ -1,20 +1,21 @@
 import * as vscode from 'vscode';
-import { initializeCommand } from "./user-interactions";
+import { WorkspaceInfo } from './data/workspace-info.interface';
 
 export async function showReportCommand(context: vscode.ExtensionContext) {
-    const commandState = await initializeCommand();
-    if (!commandState) {
-        return;
-    }
-
     const storedBranches = context.workspaceState.get<[string, string][]>('filteredBranches');
     if (!storedBranches) {
         vscode.window.showErrorMessage('No scanned branches found. Please run the scan command first.');
         return;
     }
 
+    const storedWorkspaceInfo = context.workspaceState.get<WorkspaceInfo>('workspaceInfo');
+    if (!storedWorkspaceInfo) {
+        vscode.window.showErrorMessage('No workspace info found. Please run the scan command first.');
+        return;
+    }
+
     const filteredBranches = new Map(storedBranches);
-    showReport(commandState.workspaceInfo.workspaceName, filteredBranches);
+    showReport(storedWorkspaceInfo.workspaceName, filteredBranches);
 }
 
 

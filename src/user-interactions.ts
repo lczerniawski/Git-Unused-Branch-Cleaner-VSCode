@@ -7,7 +7,7 @@ import { getRemoteInfoAzureDevOps, getRemoteInfoGitHub, getRemoteUrl } from "./g
 import simpleGit, { SimpleGit } from "simple-git";
 import { CommandState } from "./data/command-state.interface";
 
-export async function initializeCommand(): Promise<CommandState | null> {
+export async function initializeScanCommand(): Promise<CommandState | null> {
     const workspaceInfo = await getWorkspacePathAndName();
     if (!workspaceInfo) {
         return null;
