@@ -16,42 +16,52 @@ export async function filterBranches(branches: string[], criteria: string[], mai
             continue;
         }
 
-		let reason = '';
-		let includeBranch = true;
-
 		for (const criterion of criteria) {
+			let shouldAddCriterion = false;
+
 			switch (criterion) {
 				case(Criteria.NoRecentCommits):
-					reason = Criteria.NoRecentCommits;
-					includeBranch = await hasNoRecentCommits(branch, daysForCriteria!, git);
+					if(await hasNoRecentCommits(branch, daysForCriteria!, git)) {
+						shouldAddCriterion = true;
+					}
 					break;
 
 				case(Criteria.BranchesMergedIntoMain):
-					reason = Criteria.BranchesMergedIntoMain;
-					includeBranch = await hasBeenMergedIntoMain(branch, mainBranchName!, git);
+					if(await hasBeenMergedIntoMain(branch, mainBranchName!, git)) {
+						shouldAddCriterion = true;
+					}
 					break;
 
 				case(Criteria.NoAssociatedTags):
-					reason = Criteria.NoAssociatedTags;
-					includeBranch = await hasNoAssociatedTags(branch, git);
+					if(await hasNoAssociatedTags(branch, git)) {
+						shouldAddCriterion = true;
+					}
 					break;
 
 				case(Criteria.NoActivePullRequests):
-					reason = Criteria.NoActivePullRequests;
+					let includeBranch = false;
 					if(remotePlatform === RemotePlatform.GitHub) {
 						includeBranch = await hasNoPullRequestsGitHub(branch, remoteInfo!);
-						break;
 					}
 					if(remotePlatform === RemotePlatform.AzureDevOps) {
 						includeBranch = await hasNoPullRequestsAzureDevOps(branch, remoteInfo!);
-						break;
 					}
+
+					if(includeBranch) {
+						shouldAddCriterion = true;
+					}
+
+					break;
 			}
 
-		}
-
-		if(includeBranch) {
-			filteredBranches.set(branch, reason);
+            if (shouldAddCriterion) {
+                if (filteredBranches.has(branch)) {
+                    const existingCriteria = filteredBranches.get(branch);
+                    filteredBranches.set(branch, `${existingCriteria}, ${criterion}`);
+                } else {
+                    filteredBranches.set(branch, criterion);
+                }
+            }
 		}
 	}
 
