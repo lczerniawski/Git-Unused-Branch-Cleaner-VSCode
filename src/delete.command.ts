@@ -37,6 +37,11 @@ export async function deleteCommand(context: vscode.ExtensionContext) {
             }
 
             await git.push([remoteAndBranchName.firstPart, '--delete', remoteAndBranchName.secondPart]);
+            const localBranch = remoteAndBranchName.secondPart;
+            const localBranches = await git.branchLocal();
+            if (localBranches.all.includes(localBranch)) {
+                await git.branch(['-d', localBranch]);
+            }
         }
 
         vscode.window.showInformationMessage('Branches deleted successfully');
