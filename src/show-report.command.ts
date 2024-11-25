@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { WorkspaceInfo } from './data/workspace-info.interface';
+import * as helpers from './helpers';
 
 export async function showReportCommand(context: vscode.ExtensionContext) {
     const storedBranches = context.workspaceState.get<[string, string][]>('filteredBranches');
@@ -62,21 +63,30 @@ function generateReportHtml(repoTitle: string, branches: Map<string, string>): s
         </head>
         <body>
             <h1>${repoTitle}</h1>
+            <p>Total branches: ${branches.size}</p>
             <table>
                 <tr>
+                    <th>No.</th>
                     <th>Branch</th>
                     <th>Reason</th>
                 </tr>
     `;
 
-    branches.forEach((reason, branch) => {
+    for (const [index, [branch, reason]] of Array.from(branches.entries()).entries()) {
+        const remoteAndBranchName = helpers.splitAtFirstDelimiter(branch, '/');
+        if (!remoteAndBranchName) {
+            vscode.window.showErrorMessage(`Invalid branch name: ${branch}`);
+            continue;
+        }
+
         html += `
             <tr>
-                <td>${branch}</td>
+                <td>${index + 1}</td>
+                <td>${remoteAndBranchName.secondPart}</td>
                 <td>${reason}</td>
             </tr>
         `;
-    });
+    }
 
     html += `
             </table>

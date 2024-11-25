@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { WorkspaceInfo } from './data/workspace-info.interface';
 import simpleGit from 'simple-git';
+import * as helpers from './helpers';
 
 export async function deleteCommand(context: vscode.ExtensionContext) {
     const storedBranches = context.workspaceState.get<[string, string][]>('filteredBranches');
@@ -29,13 +30,13 @@ export async function deleteCommand(context: vscode.ExtensionContext) {
 
     try {
         for (let branch of branchesToDelete) {
-            const remoteAndBranchName = splitAtFirstDelimiter(branch, '/');
+            const remoteAndBranchName = helpers.splitAtFirstDelimiter(branch, '/');
             if (!remoteAndBranchName) {
                 vscode.window.showErrorMessage(`Invalid branch name: ${branch}`);
                 continue;
             }
 
-            await git.push([remoteAndBranchName[0], '--delete', remoteAndBranchName[1]]);
+            await git.push([remoteAndBranchName.firstPart, '--delete', remoteAndBranchName.secondPart]);
         }
 
         vscode.window.showInformationMessage('Branches deleted successfully');
@@ -45,12 +46,3 @@ export async function deleteCommand(context: vscode.ExtensionContext) {
     }
 }
 
-function splitAtFirstDelimiter(input: string, delimiter: string): [string, string] | null {
-    const index = input.indexOf(delimiter);
-    if (index === -1) {
-        return null;
-    }
-    const firstPart = input.substring(0, index);
-    const secondPart = input.substring(index + 1);
-    return [firstPart, secondPart];
-}
