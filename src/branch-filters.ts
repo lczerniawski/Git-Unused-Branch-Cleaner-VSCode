@@ -7,11 +7,16 @@ let Octokit: any;
 import * as vscode from 'vscode';
 import { Criteria } from "./data/criteria.enum";
 import { RemotePlatform } from "./data/remote-platform.enum";
+import { FilterBranchState } from "./data/filter-branch-state.interface";
 
-export async function filterBranches(branches: string[], criteria: string[], mainBranchName:string, daysForCriteria: number | null, remoteInfo: RemoteInfo | null, remotePlatform: string | null, git: SimpleGit): Promise<Map<string,string>>{
+export async function filterBranches(filterBranchesState: FilterBranchState): Promise<Map<string,string>>{
+	const { branches, criteria, mainBranchName, daysForCriteria, remoteInfo, remotePlatform, git, progress } = filterBranchesState;
+
 	const filteredBranches: Map<string, string> = new Map();
-
-	for(const branch of branches) {
+	const totalBranches = branches.length;
+	
+	for(const [index, branch] of branches.entries()) {
+		progress.report({ message: `Filtering branch: ${branch} (${index + 1}/${totalBranches})` });
         if (branch.includes(mainBranchName)){
             continue;
         }
