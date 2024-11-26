@@ -16,7 +16,7 @@ export async function getRemoteUrl(git: SimpleGit): Promise<string | null> {
     );
 
     if (!remoteUrl) {
-        vscode.window.showInformationMessage('No origin selected.');
+        vscode.window.showErrorMessage('No origin selected.');
         return null;
     }
 

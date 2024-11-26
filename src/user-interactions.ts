@@ -69,7 +69,7 @@ async function getWorkspacePathAndName(): Promise<WorkspaceInfo | null> {
     );
 
     if (!selectedWorkspaceFolder) {
-        vscode.window.showInformationMessage('Workspace folder selection cancelled.');
+        vscode.window.showErrorMessage('Workspace folder selection cancelled.');
         return null;
     }
 
@@ -87,7 +87,7 @@ async function getMainBranchName(): Promise<string | null> {
     });
 
     if (mainBranchName === undefined || mainBranchName === '') {
-        vscode.window.showInformationMessage('Main branch name input cancelled.');
+        vscode.window.showErrorMessage('Main branch name input cancelled.');
         return null;
     }
 
@@ -118,7 +118,7 @@ async function getDaysSinceLastCommit(): Promise<string | null> {
     });
 
     if (daysSinceLastCommit === undefined) {
-        vscode.window.showInformationMessage('Days for criteria input cancelled.');
+        vscode.window.showErrorMessage('Days for criteria input cancelled.');
         return null;
     }
 

@@ -24,7 +24,7 @@ export async function deleteCommand(context: vscode.ExtensionContext) {
     });
 
     if (!branchesToDelete || branchesToDelete.length === 0) {
-        vscode.window.showInformationMessage('No branches selected for deletion');
+        vscode.window.showErrorMessage('No branches selected for deletion');
         return;
     }
 
