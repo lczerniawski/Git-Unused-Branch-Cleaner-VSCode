@@ -27,6 +27,9 @@ export async function initializeScanCommand(): Promise<CommandState | null> {
     let daysSinceLastCommit = null;
     if (criteria.includes(Criteria.NoRecentCommits)) {
         daysSinceLastCommit = await getDaysSinceLastCommit();
+        if (daysSinceLastCommit === null) {
+            return null;
+        }
     }
 
     let remotePlatform = null;
