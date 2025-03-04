@@ -1,5 +1,8 @@
 # Change Log
 
+## [1.2.1] - 2025-03-04
+- Fix vulnerable packages
+
 ## [1.2.0] - 2024-11-26
 - Change info messages to error when input is canceled
 
