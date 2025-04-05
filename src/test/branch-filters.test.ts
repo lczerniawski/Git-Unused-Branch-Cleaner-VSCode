@@ -16,7 +16,6 @@ suite('Branch Filters Test Suite', () => {
 
     setup(() => {
         sandbox = sinon.createSandbox();
-        // Create a stub with all the methods we need from SimpleGit
         gitStub = {
             log: sandbox.stub(),
             branch: sandbox.stub(),
@@ -28,11 +27,9 @@ suite('Branch Filters Test Suite', () => {
             report: sandbox.stub()
         };
 
-        // Set up authentication stub
         authenticationStub = sandbox.stub(vscode.authentication, 'getSession');
         authenticationStub.resolves({ accessToken: 'fake-token' });
 
-        // Mock fetch for Azure DevOps API calls
         global.fetch = sandbox.stub().resolves({
             ok: true,
             json: async () => ({ value: [] })
