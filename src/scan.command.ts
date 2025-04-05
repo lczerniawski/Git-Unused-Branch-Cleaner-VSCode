@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { initializeScanCommand } from "./user-interactions";
 import { filterBranches } from "./branch-filters";
 
-export async function scanCommand(context: vscode.ExtensionContext) {
+export async function scanCommand(context: vscode.ExtensionContext, octokit: any) {
     const commandState = await initializeScanCommand();
     if (!commandState) {
         return;
@@ -29,7 +29,7 @@ export async function scanCommand(context: vscode.ExtensionContext) {
                 git: commandState.git,
                 progress: progress
             };
-            const filteredBranches = await filterBranches(filterBranchesState);
+            const filteredBranches = await filterBranches(filterBranchesState, octokit);
     
             context.workspaceState.update('filteredBranches', Array.from(filteredBranches.entries()));
             context.workspaceState.update('workspaceInfo', commandState.workspaceInfo);

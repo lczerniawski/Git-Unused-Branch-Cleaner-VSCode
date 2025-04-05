@@ -2,7 +2,7 @@ import * as assert from 'assert';
 import * as sinon from 'sinon';
 import * as vscode from 'vscode';
 import { DefaultLogFields, ListLogLine, SimpleGit } from 'simple-git';
-import { filterBranches, setOctokitForTesting } from '../branch-filters';
+import { filterBranches } from '../branch-filters';
 import { Criteria } from '../data/criteria.enum';
 import { RemotePlatform } from '../data/remote-platform.enum';
 import { FilterBranchState } from '../data/filter-branch-state.interface';
@@ -59,7 +59,7 @@ suite('Branch Filters Test Suite', () => {
             latest: null
         });
 
-        const result = await filterBranches(state);
+        const result = await filterBranches(state, null);
 
         assert.strictEqual(result.has('origin/main'), false, "main returned");
         assert.strictEqual(progressStub.report.calledTwice, true);
@@ -91,7 +91,7 @@ suite('Branch Filters Test Suite', () => {
             latest: null
         });
 
-        const result = await filterBranches(state);
+        const result = await filterBranches(state, null);
         console.log(result);
 
         assert.strictEqual(result.has('origin/feature/old'), true, "old branch not returned");
@@ -118,7 +118,7 @@ suite('Branch Filters Test Suite', () => {
             branches: {}
         });
 
-        const result = await filterBranches(state);
+        const result = await filterBranches(state, null);
 
         assert.strictEqual(result.has('origin/feature/merged'), true);
         assert.strictEqual(result.has('origin/feature/unmerged'), false);
@@ -172,7 +172,7 @@ suite('Branch Filters Test Suite', () => {
         gitStub.revparse.withArgs(['v1.0.0']).resolves(v1Hash);
         gitStub.revparse.withArgs(['v1.1.0']).resolves(v11Hash);
 
-        const result = await filterBranches(state);
+        const result = await filterBranches(state, null);
 
         assert.strictEqual(result.has('origin/feature/no-tags'), true, "branch with no tags not returned");
         assert.strictEqual(result.has('origin/feature/has-tags'), false, "branch with tags returned");
@@ -203,7 +203,7 @@ suite('Branch Filters Test Suite', () => {
             branches: {}
         });
 
-        const result = await filterBranches(state);
+        const result = await filterBranches(state, null);
 
         assert.strictEqual(result.has('origin/feature/old-merged'), true);
         assert.strictEqual(
@@ -247,12 +247,10 @@ suite('Branch Filters Test Suite', () => {
             };
         };
         
-        setOctokitForTesting(MockOctokit);
-        
         authenticationStub.withArgs('github', ['repo'], { createIfNone: true })
             .resolves({ accessToken: 'fake-github-token' });
     
-        const result = await filterBranches(state);
+        const result = await filterBranches(state, MockOctokit());
     
         assert.strictEqual(result.has('origin/feature/with-github-pr'), false, "branch with GitHub PR returned");
         assert.strictEqual(result.has('origin/feature/without-github-pr'), true, "branch without GitHub PR not returned");
@@ -290,7 +288,7 @@ suite('Branch Filters Test Suite', () => {
             json: async () => ({ value: [] })
         });
 
-        const result = await filterBranches(state);
+        const result = await filterBranches(state, null);
 
         assert.strictEqual(result.has('origin/feature/with-pr'), false, "branch with PR returned");
         assert.strictEqual(result.has('origin/feature/without-pr'), true, "branch without PR not returned");

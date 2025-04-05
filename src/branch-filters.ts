@@ -1,25 +1,11 @@
 import { SimpleGit } from "simple-git";
 import { RemoteInfo } from "./data/remote-info.interface";
-export let Octokit: any = null;
-export function setOctokitForTesting(mockOctokit: any) {
-  Octokit = mockOctokit;
-}
-(async () => {
-  if (!Octokit) {
-    try {
-      const module = await import('@octokit/rest');
-      Octokit = module.Octokit;
-    } catch (error) {
-      console.error('Failed to import Octokit:', error);
-    }
-  }
-})();
 import * as vscode from 'vscode';
 import { Criteria } from "./data/criteria.enum";
 import { RemotePlatform } from "./data/remote-platform.enum";
 import { FilterBranchState } from "./data/filter-branch-state.interface";
 
-export async function filterBranches(filterBranchesState: FilterBranchState): Promise<Map<string,string>>{
+export async function filterBranches(filterBranchesState: FilterBranchState, octokit: any): Promise<Map<string,string>>{
 	const { branches, criteria, mainBranchName, daysForCriteria, remoteInfo, remotePlatform, git, progress } = filterBranchesState;
 
 	const filteredBranches: Map<string, string> = new Map();
@@ -56,7 +42,7 @@ export async function filterBranches(filterBranchesState: FilterBranchState): Pr
 				case(Criteria.NoActivePullRequests):
 					let includeBranch = false;
 					if(remotePlatform === RemotePlatform.GitHub) {
-						includeBranch = await hasNoPullRequestsGitHub(branch, remoteInfo!);
+						includeBranch = await hasNoPullRequestsGitHub(branch, remoteInfo!, octokit);
 					}
 					if(remotePlatform === RemotePlatform.AzureDevOps) {
 						includeBranch = await hasNoPullRequestsAzureDevOps(branch, remoteInfo!);
@@ -117,10 +103,7 @@ async function hasNoAssociatedTags(branch: string, git: SimpleGit): Promise<bool
     return true;
 }
 
-async function hasNoPullRequestsGitHub(branch: string, remoteInfo: RemoteInfo): Promise<boolean> {
-	const session = await vscode.authentication.getSession('github', ['repo'], { createIfNone: true});
-	const octokit = new Octokit({ auth: session.accessToken });
-
+async function hasNoPullRequestsGitHub(branch: string, remoteInfo: RemoteInfo, octokit: any): Promise<boolean> {
 	const { owner, repo } = remoteInfo;
 	const head = `${owner}:${branch.replace(repo + '/', '')}`;
 	const { data: pullRequests } = await octokit.pulls.list({
