@@ -1,10 +1,8 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { getRemoteInfoAzureDevOps, getRemoteInfoGitHub, getRemoteUrl } from '../git.helpers';
+import { getRemoteInfoAzureDevOps, getRemoteInfoGitHub } from '../git.helpers';
 
 suite('Git Helper Tests Suit', () => {
-	vscode.window.showInformationMessage('Start all tests.');
-
     test('getRemoteInfoGitHub should return owner and repo', async () => {
         const remoteUrl = 'https://github.com/owner/repo.git';
         const result = await getRemoteInfoGitHub(remoteUrl);

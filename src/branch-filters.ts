@@ -1,8 +1,18 @@
 import { SimpleGit } from "simple-git";
 import { RemoteInfo } from "./data/remote-info.interface";
-let Octokit: any;
+export let Octokit: any = null;
+export function setOctokitForTesting(mockOctokit: any) {
+  Octokit = mockOctokit;
+}
 (async () => {
-	Octokit = (await import('@octokit/rest')).Octokit;
+  if (!Octokit) {
+    try {
+      const module = await import('@octokit/rest');
+      Octokit = module.Octokit;
+    } catch (error) {
+      console.error('Failed to import Octokit:', error);
+    }
+  }
 })();
 import * as vscode from 'vscode';
 import { Criteria } from "./data/criteria.enum";
