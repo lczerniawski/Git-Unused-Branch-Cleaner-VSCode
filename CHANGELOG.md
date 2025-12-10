@@ -1,5 +1,8 @@
 # Change Log
 
+## [1.2.2] - 2025-12-10
+- Fix vulnerable packages
+
 ## [1.2.1] - 2025-03-04
 - Fix vulnerable packages
 
