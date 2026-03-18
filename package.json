@@ -2,7 +2,7 @@
   "name": "git-unused-branch-cleaner",
   "displayName": "Git Unused Branch Cleaner",
   "description": "The Git Unused Branch Cleaner extension helps developers and teams manage Git branches efficiently by identifying and cleaning up unused or outdated branches.",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "publisher": "lczerniawski",
   "author": {
     "name": "Łukasz Czerniawski",
@@ -80,5 +80,9 @@
   "dependencies": {
     "@octokit/rest": "^22.0.1",
     "simple-git": "^3.33.0"
+  },
+  "overrides": {
+    "serialize-javascript": "^7.0.4",
+    "diff": "^8.0.3"
   }
 }
