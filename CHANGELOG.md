@@ -1,5 +1,8 @@
 # Change Log
 
+## [1.2.10] - 2026-09-03
+- Fix vulnerable packages
+
 ## [1.2.9] - 2026-07-28
 - Fix vulnerable packages
 
