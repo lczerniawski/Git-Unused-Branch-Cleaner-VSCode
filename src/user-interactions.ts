@@ -4,7 +4,7 @@ import { RemotePlatform } from "./data/remote-platform.enum";
 import { WorkspaceInfo } from "./data/workspace-info.interface";
 import * as vscode from 'vscode';
 import { getRemoteInfoAzureDevOps, getRemoteInfoGitHub, getRemoteUrl } from "./git.helpers";
-import simpleGit, { SimpleGit } from "simple-git";
+import { simpleGit, SimpleGit } from "simple-git";
 import { CommandState } from "./data/command-state.interface";
 
 export async function initializeScanCommand(): Promise<CommandState | null> {

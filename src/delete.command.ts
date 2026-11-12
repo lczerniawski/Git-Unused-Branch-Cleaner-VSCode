@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { WorkspaceInfo } from './data/workspace-info.interface';
-import simpleGit from 'simple-git';
+import { simpleGit } from 'simple-git';
 import * as helpers from './helpers';
 
 export async function deleteCommand(context: vscode.ExtensionContext) {
